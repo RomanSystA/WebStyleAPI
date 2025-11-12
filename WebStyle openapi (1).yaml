@@ -1,0 +1,152 @@
+openapi: 3.0.0
+info:
+  title: MadeTask API
+  description: API для автоматизации workflow с внешними подрядчиками
+  version: 1.0.0
+  contact:
+    name: WebStyle DevTeam
+    url: https://webstyle.example.com
+servers:
+  - url: https://api.madetask.ru/v1
+    description: Production server
+paths:
+  /tasks:
+    post:
+      summary: Создать новую задачу для подрядчика
+      description: >-
+        Создает задачу во внешней системе MadeTask Возвращает идентификатор
+        созданной задачи для последующей синхронизации
+      tags:
+        - Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+            example:
+              assignee_id: user_678
+              title: Дизайн главной страницы
+              description: Нужно сделать макет в фигме по готовому ТЗ
+              reward: 5000
+      responses:
+        '201':
+          description: Задача успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+              example:
+                id: task_abc123
+                status: open
+                assignee_id: user_678
+                reward: 5000
+        '400':
+          description: Неверный запрос
+          content:
+            application/json:
+              example:
+                error: Несуществующий assignee_id
+        '500':
+          description: Внутренняя ошибка сервера
+    patch:
+      summary: Обновить статус задачи
+      description: Обновляет статус выбранной задачи
+      tags:
+        - Tasks
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: ID задачи в системе MadeTask
+          schema:
+            type: string
+          example: task_abc123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+            examples:
+              TakeToWork:
+                summary: Подрядчик берет в работу
+                value:
+                  status: in_progress
+              CompleteTask:
+                summary: Подрядчик отметил выполнение
+                value:
+                  status: completed
+              ApproveTask:
+                summary: Менеджер принял работу
+                value:
+                  status: approved
+        responses:
+          '200':
+            description: Статус задачи обновлен
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/TaskResponse'
+          '400':
+            description: Неверный статус
+          '404':
+            description: Задача не найдена
+components:
+  schemas:
+    CreateTaskRequest:
+      type: object
+      required:
+        - assignee_id
+        - reward
+      properties:
+        assignee_id:
+          type: string
+          description: ID исполнителя
+          example: user_678
+        title:
+          type: string
+          description: Название задачи
+          example: Дизайн страницы сайта
+        description:
+          type: string
+          description: Описание задачи
+          example: Нужно сделать макет в фигме по ТЗ от менеджера
+        reward:
+          type: number
+          description: Вознаграждение за выполнение задачи
+          example: 5000
+    TaskResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор задачи в MadeTask
+          example: task_abc123
+        status:
+          type: string
+          description: Текущий статус задачи
+          example: В работе
+        assignee_id:
+          type: string
+          description: Уникальный ID исполнителя
+          example: user_678
+        reward:
+          type: number
+          description: Вознаграждение за выполнение задачи
+          example: 5000
+    UpdateTaskRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Новый статус задачи
+          enum:
+            - Размещена
+            - В работе
+            - Ожидает проверки
+            - На доработку
+            - Принято
+          example: В работе

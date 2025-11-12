@@ -1,0 +1,132 @@
+@startuml
+
+actor Менеджер as man
+
+participant CRM as crm 
+participant MadeTask_API as api
+
+actor Подрядчик as outs
+actor Бухгалтер as buh
+
+database База_Данных_CRM as db
+
+autonumber 1.1
+
+alt
+man -> crm: создает задачу для подрядчика
+activate man
+activate crm
+crm -> db: Найти madetask_id для подрядчика
+activate db
+db --> crm: madetask_user_id = "user_678"
+deactivate db
+crm -> db: Сохранить задачу (статус: "новая")
+activate db
+db --> crm: ок, task_id=111
+deactivate db
+crm -> api: POST/tasks {"assignee_id": "user_678", "reward": 5000}
+api --> crm: 201 Created {"id": "task_abc123"}
+crm -> db: Обновить задачу 111\n(madetask_task_id = "task_abc123")
+activate db
+db --> crm: OK
+deactivate db
+crm --> man:задача создана
+else
+db --> crm: Ошибка: Подрядчик не зарегистрирован в MadeTask
+crm --> man: "Ошибка: Исполнитель не найден. Отправьте ему ссылку для регистрации"
+end alt
+crm -> outs: уведомление о задаче
+activate outs
+
+outs -> crm: выбирает задачу
+outs -> crm: берет задачу в работу
+crm -> db: Обновить задачу 111 (статус: "в работе")
+activate db
+db --> crm: OK
+deactivate db
+crm -> api: PATCH /tasks/task_abc123 {"status": "in_progress"}
+crm -> man: "Задача в работе"
+crm -> db: регистрирует выполнящего задание
+activate db
+db --> crm: OK
+deactivate db
+deactivate crm
+deactivate api
+deactivate outs
+deactivate man
+
+autonumber 2.1
+
+outs -> crm: отмечает выполнение задания
+activate outs
+deactivate outs
+crm -> db: Обновить задачу 111 (статус: "на проверке")
+activate db
+db --> crm: OK
+deactivate db
+crm -> api: PATCH /tasks/task_abc123 {"status": "completed"}
+activate api
+api --> crm: 200 OK
+deactivate api
+crm --> outs: "Задача сдана на проверку"
+deactivate crm
+deactivate outs
+crm -> man: Уведомление: "Задача готова к проверке"
+activate man
+deactivate man
+
+
+autonumber 3.1
+alt
+man -> crm: Нажимает "Принять задание"
+activate man
+activate crm
+crm -> db: Обновить задачу 111 (статус: "принято")
+activate db
+db --> crm: OK
+deactivate db
+crm -> api: PATCH /tasks/{id} {"status": "approved"}
+activate api
+api --> crm: 200 OK
+deactivate api
+crm --> man: "задача принята, оплата инициирована"
+crm -> crm: публикация отчета
+deactivate man
+deactivate crm
+
+else
+man -> crm: Нажимает "Требуется доработка"
+activate man
+activate crm
+crm -> db: Обновить задачу 111 (статус: "на доработке")
+activate db
+db --> crm: OK
+deactivate db
+crm -> api: PATCH /tasks/task_abc123 {"status": "rework"}
+activate api
+api --> crm: 200 OK
+deactivate api
+crm -> outs: Уведомление: "Требуется доработка"
+activate outs
+deactivate outs
+crm --> man: "Задача возвращена исполнителю"
+deactivate man
+deactivate crm
+
+end alt
+
+autonumber 4.2
+
+buh -> crm: Запускает отчет по выплатам за месяц
+activate buh
+activate crm
+crm -> db: Собрать все выплаты
+activate db
+db --> crm: Данные
+deactivate db
+crm --> buh: Предоставляет финансовый отчет
+deactivate crm
+deactivate buh
+
+
+@enduml
